@@ -159,6 +159,11 @@
                 <input type="password" name="password" class="form-input" placeholder="••••••••" required>
             </div>
             <button type="submit" class="btn-login">Masuk Dashboard</button>
+            <div style="text-align:center; margin-top:20px;">
+                <a href="http://localhost:3000/dashboard" style="font-family:'Space Mono',monospace; font-size:11px; color:#72727e; text-decoration:none; text-transform:uppercase; letter-spacing:1px; transition:color .2s;" onmouseover="this.style.color='#00ff88'" onmouseout="this.style.color='#72727e'">
+                    ← Kembali ke Beranda
+                </a>
+            </div>
         </form>
     </div>
 </body>

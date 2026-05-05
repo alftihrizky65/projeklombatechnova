@@ -21,6 +21,7 @@ Route::post('/admin/logout', [AuthController::class, 'logout'])->name('admin.log
 Route::middleware(\App\Http\Middleware\DashboardMiddleware::class)->prefix('admin')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/reports', [DashboardController::class, 'reports'])->name('admin.reports');
+    Route::get('/certificate/{classId}', [DashboardController::class, 'viewCertificate'])->name('admin.certificate');
 
     // Chart data APIs
     Route::get('/api/user-growth', [DashboardController::class, 'userGrowthData']);
@@ -29,17 +30,19 @@ Route::middleware(\App\Http\Middleware\DashboardMiddleware::class)->prefix('admi
 
     // Content Management
     Route::get('/content/tutorials', [ContentController::class, 'tutorials'])->name('admin.content.tutorials');
-    Route::post('/content/tutorials', [ContentController::class, 'storeTutorial']);
-    Route::put('/content/tutorials/{tutorial}', [ContentController::class, 'updateTutorial']);
-    Route::delete('/content/tutorials/{tutorial}', [ContentController::class, 'destroyTutorial']);
-
+    Route::get('/content/quizzes', [ContentController::class, 'quizzes'])->name('admin.content.quizzes');
+    Route::get('/content/quizzes/{quiz}/questions', [ContentController::class, 'manageQuestions'])->name('admin.quizzes.questions');
+    Route::post('/content/quizzes/{quiz}/questions', [ContentController::class, 'storeQuestion']);
+    Route::delete('/content/questions/{question}', [ContentController::class, 'destroyQuestion']);
     Route::get('/content/dictionary', [ContentController::class, 'dictionary'])->name('admin.content.dictionary');
     Route::post('/content/dictionary', [ContentController::class, 'storeDictionary']);
     Route::put('/content/dictionary/{entry}', [ContentController::class, 'updateDictionary']);
     Route::delete('/content/dictionary/{entry}', [ContentController::class, 'destroyDictionary']);
 
-    Route::get('/content/quizzes', [ContentController::class, 'quizzes'])->name('admin.content.quizzes');
-    Route::post('/content/quizzes', [ContentController::class, 'storeQuiz']);
+    Route::get('/quizzes/{id}', [ContentController::class, 'playQuiz']);
+    Route::post('/quizzes/{id}/submit', [ContentController::class, 'submitQuiz']);
+    
+    Route::get('/content/tutorials', [ContentController::class, 'tutorials']);
     Route::put('/content/quizzes/{quiz}', [ContentController::class, 'updateQuiz']);
     Route::delete('/content/quizzes/{quiz}', [ContentController::class, 'destroyQuiz']);
 

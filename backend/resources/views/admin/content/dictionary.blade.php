@@ -7,29 +7,33 @@
         <input type="text" name="search" class="form-input" placeholder="Cari kata..." value="{{ request('search') }}">
         <button type="submit" class="btn btn-accent btn-sm">Cari</button>
     </form>
+    @if(auth()->user()->role !== 'user')
     <button onclick="document.getElementById('addModal').classList.add('active')" class="btn btn-accent">+ Tambah Kata</button>
+    @endif
 </div>
 
 <div class="card">
     <div class="table-wrap">
         <table>
-            <thead><tr><th>Kata</th><th>Kategori</th><th>Deskripsi</th><th>Video</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>Kata</th><th>Kategori</th><th>Deskripsi</th><th>Video</th>@if(auth()->user()->role !== 'user')<th>Aksi</th>@endif</tr></thead>
             <tbody>
                 @forelse($entries as $e)
                 <tr>
-                    <td style="font-weight:600;font-family:var(--font-heading)">{{ $e->word }}</td>
+                    <td style="font-weight:600;font-family:var(--font-heading);color:var(--accent)">{{ $e->word }}</td>
                     <td><span class="badge badge-info">{{ $e->category }}</span></td>
-                    <td class="text-dim text-sm">{{ Str::limit($e->description, 40) }}</td>
-                    <td>{!! $e->video_url ? '<a href="'.$e->video_url.'" target="_blank" class="text-accent text-sm">▶ Lihat</a>' : '<span class="text-dim">—</span>' !!}</td>
+                    <td class="text-dim text-sm">{{ Str::limit($e->description, 60) }}</td>
+                    <td>{!! $e->video_url ? '<a href="'.$e->video_url.'" target="_blank" class="text-accent text-sm">▶ Putar Video</a>' : '<span class="text-dim">—</span>' !!}</td>
+                    @if(auth()->user()->role !== 'user')
                     <td>
                         <div class="flex gap-2">
                             <button onclick="editEntry({{ $e->id }},'{{ addslashes($e->word) }}','{{ $e->video_url }}','{{ $e->thumbnail_url }}','{{ $e->category }}','{{ addslashes($e->description) }}')" class="btn btn-ghost btn-sm">Edit</button>
                             <form method="POST" action="/admin/content/dictionary/{{ $e->id }}" onsubmit="return confirm('Hapus?')">@csrf @method('DELETE')<button class="btn btn-danger btn-sm">Hapus</button></form>
                         </div>
                     </td>
+                    @endif
                 </tr>
                 @empty
-                <tr><td colspan="5" class="text-dim" style="text-align:center;padding:32px">Belum ada data kamus</td></tr>
+                <tr><td colspan="{{ auth()->user()->role === 'user' ? 4 : 5 }}" class="text-dim" style="text-align:center;padding:32px">Belum ada data kamus</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -37,6 +41,7 @@
     <div class="pagination">{{ $entries->links('vendor.pagination.simple') }}</div>
 </div>
 
+@if(auth()->user()->role !== 'user')
 <div class="modal-backdrop" id="addModal">
     <div class="modal">
         <div class="modal-title">Tambah Kata Baru</div>
@@ -66,6 +71,7 @@
         </form>
     </div>
 </div>
+@endif
 @endsection
 
 @section('scripts')

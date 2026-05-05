@@ -4,21 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class QuizQuestion extends Model
+class QuizResult extends Model
 {
     protected $fillable = [
+        'user_id',
         'quiz_id',
-        'question_text',
-        'image_url',
-        'correct_answer',
-        'options',
+        'score',
+        'xp_gained',
     ];
 
-    protected function casts(): array
+    public function user()
     {
-        return [
-            'options' => 'array',
-        ];
+        return $this->belongsTo(User::class);
     }
 
     public function quiz()

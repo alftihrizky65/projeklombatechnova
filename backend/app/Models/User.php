@@ -42,7 +42,7 @@ class User extends Authenticatable
 
     public function hasDashboardAccess(): bool
     {
-        return in_array($this->role, ['admin', 'content_manager']);
+        return in_array($this->role, ['admin', 'content_manager', 'user']);
     }
 
     public function learningProgress()

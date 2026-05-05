@@ -24,11 +24,6 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials)) {
             $user = Auth::user();
-            if (!$user->hasDashboardAccess()) {
-                Auth::logout();
-                return back()->withErrors(['email' => 'Akun Anda tidak memiliki akses ke dashboard.']);
-            }
-
             $request->session()->regenerate();
             return redirect()->intended('/admin/dashboard');
         }

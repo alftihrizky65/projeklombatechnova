@@ -7,9 +7,41 @@
         <input type="text" name="search" class="form-input" placeholder="Cari tutorial..." value="{{ request('search') }}">
         <button type="submit" class="btn btn-accent btn-sm">Cari</button>
     </form>
+    @if(auth()->user()->role !== 'user')
     <button onclick="document.getElementById('addModal').classList.add('active')" class="btn btn-accent">+ Tambah Tutorial</button>
+    @endif
 </div>
 
+@if(auth()->user()->role === 'user')
+<!-- User View: Tutorial Cards -->
+<div class="grid grid-3">
+    @forelse($tutorials as $t)
+    <div class="card" style="padding:0; overflow:hidden">
+        <div style="aspect-ratio:16/9; background:#000; position:relative">
+            @if($t->thumbnail_url)
+                <img src="{{ $t->thumbnail_url }}" style="width:100%; height:100%; object-fit:cover; opacity:0.7">
+            @endif
+            <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center">
+                <span style="font-size:40px; opacity:0.8">▶</span>
+            </div>
+            <div style="position:absolute; top:12px; left:12px">
+                <span class="badge badge-info">{{ $t->category }}</span>
+            </div>
+        </div>
+        <div style="padding:20px">
+            <h4 class="font-mono text-accent mb-2" style="font-size:16px">{{ $t->title }}</h4>
+            <div class="flex justify-between items-center">
+                <span class="badge badge-{{ $t->difficulty=='beginner'?'accent':($t->difficulty=='intermediate'?'warning':'danger') }}">{{ ucfirst($t->difficulty) }}</span>
+                <a href="#" class="btn btn-ghost btn-sm">Tonton</a>
+            </div>
+        </div>
+    </div>
+    @empty
+    <p class="text-dim">Belum ada tutorial.</p>
+    @endforelse
+</div>
+@else
+<!-- Admin View -->
 <div class="card">
     <div class="table-wrap">
         <table>
@@ -25,7 +57,7 @@
                     <td>
                         <div class="flex gap-2">
                             <button onclick="editTutorial({{ $t->id }}, '{{ addslashes($t->title) }}', '{{ $t->video_url }}', '{{ $t->thumbnail_url }}', '{{ addslashes($t->description) }}', '{{ $t->category }}', '{{ $t->difficulty }}', {{ $t->is_published?'true':'false' }})" class="btn btn-ghost btn-sm">Edit</button>
-                            <form method="POST" action="/admin/content/tutorials/{{ $t->id }}" onsubmit="return confirm('Hapus tutorial ini?')">@csrf @method('DELETE')<button class="btn btn-danger btn-sm">Hapus</button></form>
+                            <form method="POST" action="/admin/content/tutorials/{{ $t->id }}" onsubmit="return confirm('Hapus?')">@csrf @method('DELETE')<button class="btn btn-danger btn-sm">Hapus</button></form>
                         </div>
                     </td>
                 </tr>
@@ -35,10 +67,11 @@
             </tbody>
         </table>
     </div>
-    <div class="pagination">{{ $tutorials->links('vendor.pagination.simple') }}</div>
 </div>
+@endif
+<div class="pagination">{{ $tutorials->links('vendor.pagination.simple') }}</div>
 
-<!-- Add Modal -->
+@if(auth()->user()->role !== 'user')
 <div class="modal-backdrop" id="addModal">
     <div class="modal">
         <div class="modal-title">Tambah Tutorial</div>
@@ -56,7 +89,6 @@
     </div>
 </div>
 
-<!-- Edit Modal -->
 <div class="modal-backdrop" id="editModal">
     <div class="modal">
         <div class="modal-title">Edit Tutorial</div>
@@ -73,6 +105,7 @@
         </form>
     </div>
 </div>
+@endif
 @endsection
 
 @section('scripts')

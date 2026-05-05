@@ -19,18 +19,23 @@ class GamificationController extends Controller
             'sign_id' => 'required|string'
         ]);
 
-        // Hacky auto-auth for MVP: Get or create first user.
-        $user = User::firstOrCreate(
-            ['email' => 'student@signedu.com'],
-            ['name' => 'Demo Student', 'password' => bcrypt('password')]
-        );
+        // Use authenticated user if session exists, otherwise fallback to first (for AI engine standalone)
+        $user = auth('web')->user() ?? User::first();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found'], 404);
+        }
 
         $user->xp += $request->xp_earned;
         
-        // Simple level logic (every 100 XP is a level)
-        $newLevel = floor($user->xp / 100) + 1;
-        if($newLevel > $user->level) {
-            $user->level = $newLevel;
+        // NEW LEVEL LOGIC: 535 XP per level
+        $user->level = floor($user->xp / 535) + 1;
+
+        // Milestone Tracking
+        if ($user->xp >= 100000 && $user->last_milestone < 2) {
+            $user->last_milestone = 2;
+        } elseif ($user->xp >= 10000 && $user->last_milestone < 1) {
+            $user->last_milestone = 1;
         }
 
         $user->save();
@@ -51,6 +56,7 @@ class GamificationController extends Controller
             'success' => true,
             'xp' => $user->xp,
             'level' => $user->level,
+            'milestone' => $user->last_milestone,
             'message' => 'XP added for ' . $request->sign_id
         ]);
     }

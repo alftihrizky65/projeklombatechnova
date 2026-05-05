@@ -498,10 +498,22 @@
             <span>Admin Panel v1.0</span>
         </div>
         <nav class="sidebar-nav">
-            <div class="nav-section">Overview</div>
+            <div class="nav-section">Main Menu</div>
             <a href="/admin/dashboard" class="nav-link {{ request()->is('admin/dashboard') ? 'active' : '' }}">
-                <span class="nav-icon">📊</span> Dashboard
+                <span class="nav-icon">📊</span> {{ auth()->user()->role === 'user' ? 'My Progress' : 'Dashboard' }}
             </a>
+            
+            @if(auth()->user()->role === 'user')
+            <a href="/admin/content/tutorials" class="nav-link {{ request()->is('admin/content/tutorials') ? 'active' : '' }}">
+                <span class="nav-icon">🎬</span> Belajar Isyarat
+            </a>
+            <a href="/admin/content/quizzes" class="nav-link {{ request()->is('admin/content/quizzes') ? 'active' : '' }}">
+                <span class="nav-icon">🎮</span> Ambil Kuis
+            </a>
+            <a href="/admin/content/dictionary" class="nav-link {{ request()->is('admin/content/dictionary') ? 'active' : '' }}">
+                <span class="nav-icon">📖</span> Kamus Isyarat
+            </a>
+            @else
             <a href="/admin/reports" class="nav-link {{ request()->is('admin/reports') ? 'active' : '' }}">
                 <span class="nav-icon">📈</span> Reports
             </a>
@@ -528,6 +540,7 @@
             <a href="/admin/system-logs" class="nav-link {{ request()->is('admin/system-logs') ? 'active' : '' }}">
                 <span class="nav-icon">🔧</span> System Logs
             </a>
+            @endif
             @endif
         </nav>
         <div class="sidebar-footer">

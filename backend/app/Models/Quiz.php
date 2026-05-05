@@ -27,6 +27,11 @@ class Quiz extends Model
         return $this->hasMany(QuizQuestion::class);
     }
 
+    public function learningClass()
+    {
+        return $this->belongsTo(LearningClass::class, 'learning_class_id');
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');

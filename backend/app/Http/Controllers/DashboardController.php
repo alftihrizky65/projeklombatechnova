@@ -8,20 +8,144 @@ use App\Models\VideoTutorial;
 use App\Models\SignDictionary;
 use App\Models\Quiz;
 use App\Models\SystemLog;
+use App\Models\LearningClass;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        $totalUsers = User::where('role', 'user')->count();
-        $newUsersToday = User::where('role', 'user')
-            ->whereDate('created_at', Carbon::today())
-            ->count();
-        $totalContent = VideoTutorial::count() + SignDictionary::count() + Quiz::count();
+        $user = Auth::user();
+        if ($user->role !== 'user') {
+            // JIKA ROLE ADMIN / CONTENT MANAGER
+            $totalUsers = User::where('role', 'user')->count();
+            $newUsersToday = User::where('role', 'user')
+                ->whereDate('created_at', Carbon::today())
+                ->count();
+            $totalContent = VideoTutorial::count() + SignDictionary::count() + Quiz::count();
 
+            $aiAccuracy = AiLog::count() > 0
+                ? round(AiLog::where('is_correct', true)->count() / AiLog::count() * 100, 1)
+                : 0;
+
+            $avgResponseTime = round(AiLog::avg('response_time_ms') ?? 0);
+
+            $recentUsers = User::where('role', 'user')
+                ->latest()
+                ->take(5)
+                ->get();
+
+            $recentLogs = SystemLog::latest()->take(8)->get();
+
+            $topSigns = AiLog::select('sign_detected', DB::raw('COUNT(*) as total'))
+                ->groupBy('sign_detected')
+                ->orderByDesc('total')
+                ->take(8)
+                ->get();
+
+            return view('admin.dashboard', compact(
+                'totalUsers',
+                'newUsersToday',
+                'totalContent',
+                'aiAccuracy',
+                'avgResponseTime',
+                'recentUsers',
+                'recentLogs',
+                'topSigns'
+            ));
+        } else {
+            // USER DASHBOARD LOGIC
+            $completedSigns = DB::table('learning_progress')
+                ->where('user_id', $user->id)
+                ->where('is_completed', true)
+                ->count();
+
+            // Fetch Classes instead of just Quizzes
+            $classes = LearningClass::with(['quizzes'])->get();
+            
+            // Get User's Highest Scores per Quiz
+            $quizScores = DB::table('quiz_results')
+                ->where('user_id', $user->id)
+                ->select('quiz_id', DB::raw('MAX(score) as max_score'))
+                ->groupBy('quiz_id')
+                ->pluck('max_score', 'quiz_id');
+
+            // Class Progress Calculation
+            foreach ($classes as $class) {
+                $quizIds = $class->quizzes->pluck('id');
+                $passedQuizzes = 0;
+                foreach ($quizIds as $qid) {
+                    if (isset($quizScores[$qid]) && $quizScores[$qid] >= 70) {
+                        $passedQuizzes++;
+                    }
+                }
+                
+                $practicalCount = DB::table('ai_logs')
+                    ->where('user_id', $user->id)
+                    ->where('is_correct', true)
+                    ->where('sign_detected', 'like', $class->category . '%')
+                    ->count();
+                
+                $class->is_completed = ($passedQuizzes >= $class->quizzes->count() && $practicalCount >= $class->required_practical_count);
+                $class->passed_quizzes = $passedQuizzes;
+                $class->practical_count = $practicalCount;
+            }
+
+            $recentTutorials = VideoTutorial::where('is_published', true)->latest()->take(3)->get();
+            
+            // XP didapat minggu ini
+            $weeklyXp = \App\Models\QuizResult::where('user_id', $user->id)
+                ->where('created_at', '>=', Carbon::now()->subDays(7))
+                ->sum('xp_gained');
+            
+            // Milestone check
+            $milestonePopup = null;
+            if ($user->xp >= 100000 && $user->last_milestone < 2) {
+                $milestonePopup = 'pro';
+                $user->update(['last_milestone' => 2]);
+            } elseif ($user->xp >= 10000 && $user->last_milestone < 1) {
+                $milestonePopup = 'intermediate';
+                $user->update(['last_milestone' => 1]);
+            }
+
+            return view('admin.dashboard_user', compact(
+                'user',
+                'completedSigns',
+                'classes',
+                'quizScores',
+                'recentTutorials',
+                'weeklyXp',
+                'milestonePopup'
+            ));
+        }
+    }
+
+    public function viewCertificate($classId)
+    {
+        $user = Auth::user();
+        $class = LearningClass::findOrFail($classId);
+        
+        // Safety check: ensure they actually finished it
+        $quizScores = DB::table('quiz_results')
+            ->where('user_id', $user->id)
+            ->whereIn('quiz_id', $class->quizzes->pluck('id'))
+            ->select('quiz_id', DB::raw('MAX(score) as max_score'))
+            ->groupBy('quiz_id')
+            ->pluck('max_score', 'quiz_id');
+            
+        $passedQuizzes = 0;
+        foreach ($class->quizzes as $q) {
+            if (isset($quizScores[$q->id]) && $quizScores[$q->id] >= 70) $passedQuizzes++;
+        }
+        
+        $practicalCount = DB::table('ai_logs')
+            ->where('user_id', $user->id)
+            ->where('is_correct', true)
+            ->where('sign_detected', 'like', $class->category . '%')
+            ->count();
         $aiAccuracy = AiLog::count() > 0
             ? round(AiLog::where('is_correct', true)->count() / AiLog::count() * 100, 1)
             : 0;
@@ -90,29 +214,19 @@ class DashboardController extends Controller
     public function systemHealth()
     {
         $laravelStatus = true;
-
-        // Check AI engine
         $aiStatus = false;
         try {
             $ch = curl_init('http://localhost:8069/health');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 2);
             $response = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
             $aiStatus = $httpCode === 200;
-        } catch (\Exception $e) {
-            $aiStatus = false;
-        }
+        } catch (\Exception $e) { $aiStatus = false; }
 
-        // Check DB
         $dbStatus = false;
-        try {
-            DB::connection()->getPdo();
-            $dbStatus = true;
-        } catch (\Exception $e) {
-            $dbStatus = false;
-        }
+        try { DB::connection()->getPdo(); $dbStatus = true; } catch (\Exception $e) { $dbStatus = false; }
 
         return response()->json([
             'laravel' => $laravelStatus,
@@ -120,17 +234,13 @@ class DashboardController extends Controller
             'database' => $dbStatus,
             'memory' => round(memory_get_usage(true) / 1024 / 1024, 1) . ' MB',
             'php_version' => PHP_VERSION,
-            'laravel_version' => app()->version(),
         ]);
     }
 
     public function reports()
     {
         $totalUsers = User::where('role', 'user')->count();
-        $activeUsers = User::where('role', 'user')
-            ->where('xp', '>', 0)
-            ->count();
-
+        $activeUsers = User::where('role', 'user')->where('xp', '>', 0)->count();
         $avgLevel = round(User::where('role', 'user')->avg('level') ?? 0, 1);
         $totalAiCalls = AiLog::count();
 
@@ -146,13 +256,6 @@ class DashboardController extends Controller
             ->orderBy('level')
             ->get();
 
-        return view('admin.reports', compact(
-            'totalUsers',
-            'activeUsers',
-            'avgLevel',
-            'totalAiCalls',
-            'topSigns',
-            'levelDistribution'
-        ));
+        return view('admin.reports', compact('totalUsers', 'activeUsers', 'avgLevel', 'totalAiCalls', 'topSigns', 'levelDistribution'));
     }
 }

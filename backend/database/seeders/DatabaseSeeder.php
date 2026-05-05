@@ -92,31 +92,33 @@ class DatabaseSeeder extends Seeder
             ]));
         }
 
-        // ── Quizzes ──
-        $quiz = Quiz::create([
-            'title' => 'Kuis Salam BISINDO',
-            'description' => 'Uji pengetahuan kamu tentang salam dalam BISINDO',
-            'difficulty' => 'beginner',
-            'category' => 'salam',
-            'is_published' => true,
-            'created_by' => $admin->id,
-        ]);
+        // ── Quizzes (12 Quizzes for Demo) ──
+        $categories = ['salam', 'alfabet', 'angka', 'harian'];
+        $difficulties = ['beginner', 'intermediate', 'advanced'];
 
-        QuizQuestion::create([
-            'quiz_id' => $quiz->id,
-            'question_text' => 'Gerakan apa yang digunakan untuk menyapa?',
-            'correct_answer' => 'Halo',
-            'options' => ['Halo', 'Maaf', 'Tolong', 'Tidak'],
-        ]);
+        foreach ($categories as $cat) {
+            foreach ($difficulties as $diff) {
+                $quiz = Quiz::create([
+                    'title' => 'Kuis ' . ucfirst($cat) . ' (' . ucfirst($diff) . ')',
+                    'description' => 'Uji kemampuan isyarat ' . $cat . ' di tingkat ' . $diff . '.',
+                    'difficulty' => $diff,
+                    'category' => $cat,
+                    'is_published' => true,
+                    'created_by' => $admin->id,
+                ]);
 
-        Quiz::create([
-            'title' => 'Kuis Alfabet BISINDO',
-            'description' => 'Test alfabet BISINDO',
-            'difficulty' => 'intermediate',
-            'category' => 'alfabet',
-            'is_published' => true,
-            'created_by' => $admin->id,
-        ]);
+                // Create 3 questions per quiz
+                for ($k = 1; $k <= 3; $k++) {
+                    QuizQuestion::create([
+                        'quiz_id' => $quiz->id,
+                        'question_text' => 'Pilih isyarat yang tepat untuk "' . ucfirst($cat) . ' ' . $k . '"?',
+                        'image_url' => 'https://placehold.co/400x300/16161a/00ff88?text=' . ucfirst($cat) . '+' . $k,
+                        'correct_answer' => 'Opsi A',
+                        'options' => ['Opsi A', 'Opsi B', 'Opsi C', 'Opsi D'],
+                    ]);
+                }
+            }
+        }
 
         // ── AI Logs (spread over 14 days) ──
         $signNames = ['Halo', 'Terima Kasih', 'Maaf', 'Tolong', 'Iya', 'Tidak', 'Apa', 'Makan'];

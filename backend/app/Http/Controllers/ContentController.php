@@ -7,6 +7,8 @@ use App\Models\SignDictionary;
 use App\Models\Quiz;
 use App\Models\QuizQuestion;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class ContentController extends Controller
 {
@@ -125,14 +127,117 @@ class ContentController extends Controller
 
     public function quizzes(Request $request)
     {
-        $query = Quiz::withCount('questions')->with('creator');
+        $query = Quiz::withCount('questions');
+        if ($request->search) {
+            $query->where('title', 'like', '%' . $request->search . '%');
+        }
+        $quizzes = $query->latest()->paginate(10);
+        return view('admin.content.quizzes', compact('quizzes'));
+    }
 
-        if ($request->filled('search')) {
-            $query->where('title', 'like', "%{$request->search}%");
+    public function playQuiz($id)
+    {
+        $quiz = Quiz::with('questions')->findOrFail($id);
+        
+        // Shuffle questions for variety
+        $quiz->setRelation('questions', $quiz->questions->shuffle());
+        
+        return view('admin.content.quiz-play', compact('quiz'));
+    }
+
+    public function manageQuestions(Quiz $quiz)
+    {
+        $questions = $quiz->questions;
+        return view('admin.content.quiz-questions', compact('quiz', 'questions'));
+    }
+
+    public function storeQuestion(Request $request, Quiz $quiz)
+    {
+        $validated = $request->validate([
+            'question_text' => 'required|string',
+            'correct_answer' => 'required|string',
+            'options' => 'required|array|min:2',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        $imageUrl = null;
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('quizzes', 'public');
+            $imageUrl = '/storage/' . $path;
         }
 
-        $quizzes = $query->latest()->paginate(12)->withQueryString();
-        return view('admin.content.quizzes', compact('quizzes'));
+        $quiz->questions()->create([
+            'question_text' => $validated['question_text'],
+            'correct_answer' => $validated['correct_answer'],
+            'options' => $validated['options'],
+            'image_url' => $imageUrl,
+        ]);
+
+        return back()->with('success', 'Soal berhasil ditambahkan!');
+    }
+
+    public function destroyQuestion($id)
+    {
+        $question = \App\Models\QuizQuestion::findOrFail($id);
+        $question->delete();
+        return back()->with('success', 'Soal berhasil dihapus!');
+    }
+
+    public function submitQuiz(Request $request, $id)
+    {
+        try {
+            $user = Auth::user();
+            $score = $request->score; // 0-100
+            
+            // Check Daily Limit: Max 5 Quizzes for XP
+            $todayQuizCount = \App\Models\QuizResult::where('user_id', $user->id)
+                ->whereDate('created_at', \Carbon\Carbon::today())
+                ->count();
+
+            // Logic: Nilai < 70 tidak lulus. Jika sudah 5 kuis hari ini, XP = 0.
+            $passed = $score >= 70;
+            $xpGained = ($passed && $todayQuizCount < 5) ? (floor($score / 10) * 5) : 0;
+
+            // Simpan Hasil ke Database
+            DB::beginTransaction();
+            \App\Models\QuizResult::create([
+                'user_id' => $user->id,
+                'quiz_id' => $id,
+                'score' => $score,
+                'xp_gained' => $xpGained,
+            ]);
+
+            if ($xpGained > 0) {
+                $user->xp += $xpGained;
+                // NEW LEVEL FORMULA: 535 XP per Level
+                $user->level = floor($user->xp / 535) + 1;
+                $user->save();
+            }
+            DB::commit();
+
+            // Check if user hit milestone for popup trigger
+            $showMilestone = null;
+            if ($user->xp >= 100000 && $user->last_milestone < 2) {
+                $showMilestone = 'pro';
+                $user->update(['last_milestone' => 2]);
+            } elseif ($user->xp >= 10000 && $user->last_milestone < 1) {
+                $showMilestone = 'intermediate';
+                $user->update(['last_milestone' => 1]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'passed' => $passed,
+                'xp_gained' => $xpGained,
+                'daily_limit_reached' => $todayQuizCount >= 5,
+                'new_xp' => $user->xp,
+                'new_level' => $user->level,
+                'milestone' => $showMilestone
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     public function storeQuiz(Request $request)

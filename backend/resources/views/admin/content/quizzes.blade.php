@@ -7,9 +7,32 @@
         <input type="text" name="search" class="form-input" placeholder="Cari kuis..." value="{{ request('search') }}">
         <button type="submit" class="btn btn-accent btn-sm">Cari</button>
     </form>
+    @if(auth()->user()->role !== 'user')
     <button onclick="document.getElementById('addModal').classList.add('active')" class="btn btn-accent">+ Tambah Kuis</button>
+    @endif
 </div>
 
+@if(auth()->user()->role === 'user')
+<!-- User View: Quiz Cards -->
+<div class="grid grid-3">
+    @forelse($quizzes as $q)
+    <div class="card" style="position:relative">
+        <div style="position:absolute; top:12px; right:12px">
+            <span class="badge badge-{{ $q->difficulty=='beginner'?'accent':($q->difficulty=='intermediate'?'warning':'danger') }}">{{ ucfirst($q->difficulty) }}</span>
+        </div>
+        <div class="font-mono text-accent mb-2" style="font-size:16px; font-weight:700">{{ $q->title }}</div>
+        <p class="text-dim text-sm mb-4">{{ $q->description }}</p>
+        <div class="flex justify-between items-center mt-auto">
+            <span class="text-xs text-dim">Kategori: {{ $q->category }}</span>
+            <a href="/admin/quizzes/{{ $q->id }}" class="btn btn-accent btn-sm">Mulai Kuis</a>
+        </div>
+    </div>
+    @empty
+    <p class="text-dim">Belum ada kuis tersedia.</p>
+    @endforelse
+</div>
+@else
+<!-- Admin View: Management Table -->
 <div class="card">
     <div class="table-wrap">
         <table>
@@ -24,6 +47,7 @@
                     <td>{!! $q->is_published ? '<span class="badge badge-success">Published</span>' : '<span class="badge badge-warning">Draft</span>' !!}</td>
                     <td>
                         <div class="flex gap-2">
+                            <a href="/admin/content/quizzes/{{ $q->id }}/questions" class="btn btn-accent btn-sm">Kelola Soal</a>
                             <button onclick="editQuiz({{ $q->id }},'{{ addslashes($q->title) }}','{{ addslashes($q->description) }}','{{ $q->difficulty }}','{{ $q->category }}',{{ $q->is_published?'true':'false' }})" class="btn btn-ghost btn-sm">Edit</button>
                             <form method="POST" action="/admin/content/quizzes/{{ $q->id }}" onsubmit="return confirm('Hapus kuis ini?')">@csrf @method('DELETE')<button class="btn btn-danger btn-sm">Hapus</button></form>
                         </div>
@@ -35,10 +59,15 @@
             </tbody>
         </table>
     </div>
-    <div class="pagination">{{ $quizzes->links('vendor.pagination.simple') }}</div>
 </div>
+@endif
+<div class="pagination">{{ $quizzes->links('vendor.pagination.simple') }}</div>
 
+@if(auth()->user()->role !== 'user')
+<!-- Modals only for Admin/Content Manager -->
 <div class="modal-backdrop" id="addModal">
+... (rest of modals) ...
+@endif
     <div class="modal">
         <div class="modal-title">Tambah Kuis</div>
         <form method="POST" action="/admin/content/quizzes">

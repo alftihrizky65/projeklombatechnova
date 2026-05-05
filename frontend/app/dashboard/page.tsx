@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, User, Zap } from 'lucide-react'
+import { ArrowLeft, User, Zap, Shield } from 'lucide-react'
 import confetti from 'canvas-confetti'
 
 export default function Dashboard() {
@@ -140,6 +140,10 @@ export default function Dashboard() {
     }
   }
 
+  const handleAdminRedirect = () => {
+    window.location.href = "http://127.0.0.1:8000/admin/login"
+  }
+
   return (
     <div className="min-h-screen bg-black text-white p-6 font-mono selection:bg-[#00ff88] selection:text-black">
       {/* Header */}
@@ -150,6 +154,9 @@ export default function Dashboard() {
         </div>
         
         <div className="flex items-center gap-6 pr-4">
+          <button onClick={handleAdminRedirect} className="flex items-center gap-2 text-xs px-4 py-2 border border-[#00ff88] text-[#00ff88] hover:bg-[#00ff88] hover:text-black transition-colors font-bold uppercase tracking-wider">
+            <Shield size={16} /> Admin Panel
+          </button>
           <div className="flex items-center gap-2 text-[#00ff88]">
             <Zap size={20} className="fill-[#00ff88] animate-pulse" />
             <span className="font-bold text-xl">{userData.xp} XP</span>

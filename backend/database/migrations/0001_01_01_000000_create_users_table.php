@@ -20,6 +20,7 @@ return new class extends Migration
             $table->integer('level')->default(1);
             $table->integer('streak')->default(0);
             $table->string('avatar_8bit')->nullable();
+            $table->enum('role', ['admin', 'content_manager', 'user'])->default('user');
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();
